@@ -4,6 +4,7 @@ import json
 import warnings
 import argparse
 import numpy as np
+import glob
 import torch
 import torch.nn.functional as F
 import esm
@@ -273,6 +274,126 @@ def preprocess_single_sample(sample, AntiBinder_model):
         't4': torch.tensor([DAR],device=device).float(),
         'aac1': aac1, 'aac2': aac2, 'aac3': aac3
     }
+
+def load_antibinder_model():
+    ab_ckpt = "model_weights/modified_model.pth"
+
+    if not os.path.exists(ab_ckpt):
+        raise FileNotFoundError(f"AntiBinder checkpoint not found: {ab_ckpt}")
+
+    sd = torch.load(ab_ckpt, map_location=device)
+    sd = {k.replace("module.", ""): v for k, v in sd.items()}
+
+    AntiBinder_model = antibinder().to(device)
+    AntiBinder_model.load_state_dict(sd, strict=False)
+    AntiBinder_model.eval()
+
+    return AntiBinder_model
+
+
+def load_models(seed=1):
+    ADC_model = PredictModel(
+        num_layers=6,
+        d_model=256,
+        dff=512,
+        num_heads=8,
+        vocab_size=18,
+        dropout_rate=0.40
+    ).to(device)
+
+    ckpt = f"ckpts/ADC_{seed}_best_model.pth"
+
+    if not os.path.exists(ckpt):
+        raise FileNotFoundError(f"ADC checkpoint not found: {ckpt}")
+
+    ADC_model.load_state_dict(
+        torch.load(ckpt, map_location=device)
+    )
+    ADC_model.eval()
+
+    AntiBinder_model = load_antibinder_model()
+
+    return ADC_model, AntiBinder_model
+
+
+def predict_sample(sample, seed=1, threshold=0.40, ensemble=False):
+    if ensemble:
+        available_ckpts = sorted(
+            glob.glob("ckpts/ADC_*_best_model.pth")
+        )
+
+        if len(available_ckpts) == 0:
+            raise FileNotFoundError("No checkpoint models found.")
+
+        AntiBinder_model = load_antibinder_model()
+
+        processed = preprocess_single_sample(sample, AntiBinder_model)
+
+        for key in processed:
+            if isinstance(processed[key], torch.Tensor):
+                processed[key] = processed[key].to(device)
+
+        all_probs = []
+
+        for ckpt_path in available_ckpts:
+            ADC_model = PredictModel(
+                num_layers=6,
+                d_model=256,
+                dff=512,
+                num_heads=8,
+                vocab_size=18,
+                dropout_rate=0.40
+            ).to(device)
+
+            ADC_model.load_state_dict(
+                torch.load(ckpt_path, map_location=device)
+            )
+            ADC_model.eval()
+
+            with torch.no_grad():
+                out = ADC_model(
+                    processed['x1'], processed['x1maccs'],
+                    processed['x2'], processed['x2maccs'],
+                    processed['t1'], processed['t2'], processed['t3'],
+                    processed['aac1'], processed['aac2'], processed['aac3'],
+                    processed['t4'],
+                    mask1=None, adjoin_matrix1=None,
+                    mask2=None, adjoin_matrix2=None,
+                    training=False
+                )
+
+            all_probs.append(torch.sigmoid(out).item())
+
+        probability = float(np.mean(all_probs))
+
+    else:
+        ADC_model, AntiBinder_model = load_models(seed)
+
+        processed = preprocess_single_sample(sample, AntiBinder_model)
+
+        for key in processed:
+            if isinstance(processed[key], torch.Tensor):
+                processed[key] = processed[key].to(device)
+
+        ADC_model.eval()
+
+        with torch.no_grad():
+            out = ADC_model(
+                processed['x1'], processed['x1maccs'],
+                processed['x2'], processed['x2maccs'],
+                processed['t1'], processed['t2'], processed['t3'],
+                processed['aac1'], processed['aac2'], processed['aac3'],
+                processed['t4'],
+                mask1=None, adjoin_matrix1=None,
+                mask2=None, adjoin_matrix2=None,
+                training=False
+            )
+
+        probability = torch.sigmoid(out).item()
+
+    label = 1 if probability > threshold else 0
+
+    return probability, label
 
 def main(seed, json_path):
     
