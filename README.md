@@ -1,4 +1,12 @@
-
+---
+title: ABFormer
+emoji: 🧬
+colorFrom: red
+colorTo: blue
+sdk: docker
+app_port: 7860
+pinned: false
+---
 # **ABFormer: A Transformer-Based Multi-Modal Framework for ADC Activity Prediction**
 
 ABFormer is a multi-modal deep learning architecture designed for activity prediction and in-silico triage of Antibody–Drug Conjugates (ADCs). Unlike prior models—most notably ADCNet—that treat antibodies, antigens, linkers, and payloads as independent features, ABFormer introduces a contextualized antibody–antigen binding representation derived from a pretrained interaction encoder. This interface-aware design improves generalization to unseen antibody–antigen pairs and prevents the over-optimistic behaviour observed in baseline models.
