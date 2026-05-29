@@ -139,9 +139,18 @@ class Combine_Embedding(nn.Module):
     def forward(self, antibody, antigen):  
         # antibody: [antibody,at_type,antibody_structure]
         # antigen : [antigen,antigen_structure]
-        antibody[0], antibody[1], antibody[2] = antibody[0].cuda(), antibody[1].cuda(), antibody[2].cuda()
-        antigen[0],antigen[1] = antigen[0].cuda(),antigen[1].cuda()
+        device = next(self.parameters()).device
 
+        antibody[0], antibody[1], antibody[2] = (
+        antibody[0].to(device),
+        antibody[1].to(device),
+        antibody[2].to(device)
+        )
+
+        antigen[0], antigen[1] = (
+        antigen[0].to(device),
+        antigen[1].to(device)
+        )
         antibody_seq_emb = self.seq_emb(seq = antibody[0], type = antibody[1])
         # print(antibody[2].shape)
         antibody_structure = self.antibody_sturcture_change_dim(antibody[2])
@@ -213,10 +222,13 @@ if __name__ == "__main__":
 
     model = antibinder(antibody_hidden_dim=1024,antigen_hidden_dim=1024,latent_dim=32)
     print(model)
-    model.combined_embedding = torch.nn.DataParallel(model.combined_embedding).cuda()
-    model.bicrossatt = torch.nn.DataParallel(model.bicrossatt).cuda()
-    model.cls = torch.nn.DataParallel(model.cls).cuda()
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model=model.to(device)
 
+
+    model.combined_embedding = model.combined_embedding.to(device)
+    model.bicrossatt = model.bicrossatt.to(device)
+    model.cls = model.cls.to(device)
     x1 = torch.randint(low=0, high=10,size=(3,149))
     x2 = torch.randint(low=0, high=10,size=(3,149))
     x3 = torch.rand(3,149,64)
