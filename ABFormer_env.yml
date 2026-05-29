@@ -107,6 +107,7 @@ dependencies:
       - scipy==1.16.2
       - six==1.17.0
       - sortedcontainers==2.4.0
+      - streamlit
       - sympy==1.14.0
       - tensorboardx==2.6.4
       - threadpoolctl==3.6.0

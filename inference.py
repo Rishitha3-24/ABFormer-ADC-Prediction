@@ -17,7 +17,7 @@ from transformers import BertConfig, BertTokenizer
 from transformers.tokenization_utils import Trie
 from transformers.models.bert.tokenization_bert import *
 
-from ADCNet import PredictModel
+from  model import PredictModel
 from AntiBinder.antibinder_model import *
 from AntiBinder.antigen_antibody_emb import *
 from AntiBinder.cfg_ab import *
@@ -144,34 +144,62 @@ def get_esm2_embeddings(data):
     return embs
 
 def process_antibody_antigen(sequences, new_dict, antigen_structure):
-    emb = igfold.embed(sequences=sequences)
+    with torch.no_grad():
+        emb = igfold.embed(sequences=sequences)
+
     struct = emb.structure_embs.detach().cpu()
 
-    heavy = ''.join(new_dict[r] for r in
-                    ['H-FR1','H-CDR1','H-FR2','H-CDR2','H-FR3','H-CDR3','H-FR4'])
-    pad = 149 - len(heavy)
-    if pad < 0:
-        struct = struct[:, :149, :]
-    else:
-        z = torch.zeros(1, pad, struct.size(-1))
+    # IgFold may return H+L structure embeddings. AntiBinder expects heavy length 149.
+    if struct.dim() == 2:
+        struct = struct.unsqueeze(0)
+
+    if struct.dim() != 3:
+        raise ValueError(f"Unexpected IgFold structure embedding shape: {struct.shape}")
+
+    struct = struct[:, :149, :]
+
+    if struct.shape[1] < 149:
+        pad_len = 149 - struct.shape[1]
+        z = torch.zeros(
+            struct.shape[0],
+            pad_len,
+            struct.shape[2],
+            dtype=struct.dtype
+        )
         struct = torch.cat([struct, z], dim=1)
 
-    ab = torch.tensor([AminoAcid_Vocab.get(a,0) for a in new_dict['t1']])
-    ab = universal_padding(ab,149)
-    at = region_indexing(new_dict)
+    ab = torch.tensor(
+        [AminoAcid_Vocab.get(a, 0) for a in new_dict['t1']],
+        dtype=torch.long
+    )
+    ab = universal_padding(ab, 149).long()
+
+    at = region_indexing(new_dict).long()
 
     ag_seq = new_dict["t3"].strip()
-    ag = torch.tensor([AminoAcid_Vocab.get(a,0) for a in ag_seq])
-    ag = universal_padding(ag,1024)
+    ag = torch.tensor(
+        [AminoAcid_Vocab.get(a, 0) for a in ag_seq],
+        dtype=torch.long
+    )
+    ag = universal_padding(ag, 1024).long()
 
     L, D = antigen_structure.shape
     if L > 1024:
-        antigen_structure = antigen_structure[:1024,:]
+        antigen_structure = antigen_structure[:1024, :]
     else:
-        antigen_structure = F.pad(antigen_structure,(0,0,0,1024-L))
+        antigen_structure = F.pad(antigen_structure, (0, 0, 0, 1024 - L))
 
-    antibody = [ab.unsqueeze(0), at.unsqueeze(0), struct]
-    antigen = [ag.unsqueeze(0), antigen_structure.unsqueeze(0)]
+    antibody = [
+        ab.unsqueeze(0),
+        at.unsqueeze(0),
+        struct.float()
+    ]
+
+    antigen = [
+        ag.unsqueeze(0),
+        antigen_structure.unsqueeze(0).float()
+    ]
+
     return antibody, antigen
 
 def DAR_feature(v):
@@ -210,9 +238,16 @@ def preprocess_single_sample(sample, AntiBinder_model):
         heavy_seq = H
 
     ab_set, ag_set = process_antibody_antigen({'H':heavy_seq}, new, antigen_struct)
-    ab_set = [t.to(device) for t in ab_set]
-    ag_set = [t.to(device) for t in ag_set]
+    ab_set = [
+        ab_set[0].long().to(device),
+        ab_set[1].long().to(device),
+        ab_set[2].float().to(device)
+    ]
 
+    ag_set = [
+        ag_set[0].long().to(device),
+        ag_set[1].float().to(device)
+    ]
     with torch.no_grad():
         heavy_emb = AntiBinder_model(ab_set, ag_set)
 
@@ -250,7 +285,7 @@ def main(seed, json_path):
     ADC_model.load_state_dict(torch.load(ckpt, map_location=device))
     ADC_model.eval()
 
-    ab_ckpt = "model_weights/AntiBinder_Weights.pth"
+    ab_ckpt = "model_weights/modified_model.pth"
     sd = torch.load(ab_ckpt, map_location=device)
     sd = {k.replace("module.",""):v for k,v in sd.items()}
     AntiBinder_model = antibinder().to(device)
