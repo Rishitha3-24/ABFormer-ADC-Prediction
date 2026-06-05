@@ -272,12 +272,7 @@ class AB_Data:
         x2 = [torch.tensor(x) for x in x2]
 
         
-        for i, x in enumerate(x1[:10]):
-            print(i, type(x), x.shape)
-
         
-        for i, x in enumerate(x2[:10]):
-            print(i, type(x), x.shape)
 
         t4 = torch.tensor(t4)
 
@@ -290,10 +285,7 @@ class AB_Data:
         x2 = torch.stack(x2)        
 
         
-        for i, x in enumerate(t1[:20]):
-            print(i, type(x), x.shape)
-
-        print(set([tuple(x.shape) for x in t1]))
+    
         
         t1 = torch.stack([x.cpu().float() for x in t1])
         t2 = torch.stack([
