@@ -21,6 +21,36 @@ ABFormer addresses this limitation via interaction-centric transfer learning: an
 
 ---
 
+## Dataset
+
+ABFormer was trained and evaluated on ADCdb, a curated Antibody–Drug Conjugate dataset containing:
+
+- Antibody heavy chain sequences
+- Antibody light chain sequences
+- Antigen sequences
+- Linker structures
+- Payload structures
+- Drug-to-Antibody Ratio (DAR)
+- Binary activity labels
+
+The dataset was split using both random split and leave-pair-out evaluation protocols.
+
+
+## Repository Structure
+
+ABFormer/
+├── app.py
+├── train.py
+├── inference.py
+├── model.py
+├── utils.py
+├── AB_Data.py
+├── data/
+├── Embeddings/
+├── ckpts/
+├── Ablation/
+└── architecture.png
+
 ## **Key Contributions**
 
 * **Contextualized Antibody–Antigen Interface Encoding**
@@ -61,6 +91,19 @@ ABFormer addresses this limitation via interaction-centric transfer learning: an
 
 ---
 
+## Ablation Studies
+
+To assess feature importance, several modalities were removed individually:
+
+- Remove AAC
+- Remove MACCS
+- Remove DAR
+- Remove Antigen
+- Remove Chemical Embeddings
+- Zero-shot Variant
+
+Performance degradation observed during ablation experiments confirms the contribution of each modality to overall prediction performance.
+
 ## **Installation**
 
 ```bash
@@ -93,5 +136,13 @@ python train.py --unique_split
 ```bash
 python inference.py --seed="$seed" --json_path="data.json"
 ```
+
+## Deployment
+
+ABFormer can be deployed as:
+
+- Streamlit Application
+- Docker Container
+- Hugging Face Space
 
 ---
