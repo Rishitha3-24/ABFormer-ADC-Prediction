@@ -137,6 +137,20 @@ python train.py --unique_split
 python inference.py --seed="$seed" --json_path="data.json"
 ```
 
+## Results
+
+ABFormer was evaluated across five random seeds on ADCdb.
+
+| Seed | Accuracy |
+|----  |----------|
+| 1    |  0.8636  |
+| 2    |  0.7955  |
+| 3    |  0.8409  |
+| 4    |  0.7273  |
+| 5    |  0.8409  |
+
+Average Accuracy: 81.37% ± 5.04%
+
 ## Deployment
 
 ABFormer can be deployed as:
