@@ -56,7 +56,7 @@ from sklearn.metrics import (
     confusion_matrix
 )
 
-def score(y_true, y_pred):
+def score(y_true, y_pred, threshold=0.5):
 
     if isinstance(y_true, torch.Tensor):
         y_true = y_true.detach().cpu().numpy()
@@ -76,7 +76,7 @@ def score(y_true, y_pred):
     precision, recall, _ = precision_recall_curve(y_true, y_pred)
     prauc = auc(recall, precision)
 
-    y_pred_bin = np.round(y_pred).astype(int)
+    y_pred_bin = (y_pred >= threshold).astype(int)
 
     tn, fp, fn, tp = confusion_matrix(y_true, y_pred_bin).ravel()
 

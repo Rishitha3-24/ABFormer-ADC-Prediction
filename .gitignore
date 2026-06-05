@@ -1,21 +1,23 @@
 __pycache__/
 *.pyc
 
-ABFormer_logs/
-Ablation/
-data/
-Embeddings/
 cache/
 
-cached_heavy_emb.pt
+# Other PyTorch files
+*.pt
+*.pth
 
-attention_weights*.png
-confusion_matrix*.png
-ABFormer_results.csv
+.vscode/
 
-run_tests.ipynb
-.ipynb_checkpoints/
+.env
 
+.streamlit/secrets.toml
+# Model checkpoints
+ckpts/*.pth
 
-*.csv
-*.png
+# Results
+ABFormer_logs/
+
+# Generated figures
+attention_weights_*.png
+confusion_matrix_*.png
